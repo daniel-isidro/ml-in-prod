@@ -15,8 +15,10 @@ from tensorflow.keras import metrics
 from tensorflow.keras import utils
 from tensorflow.keras import callbacks
 
+from . import __version__
 
 LOGGER = logging.getLogger()
+VERSION = __version__
 
 def _download_data():
     LOGGER.info('Downloading data...')
@@ -69,6 +71,10 @@ def train_and_evaluate(batch_size, epochs, job_dir, output_path):
     # Evaluate the model
     loss_value, accuracy = model.evaluate(x_test, y_test)
     LOGGER.info('  *** LOSS VALUE:  %f    ACCURACY: %.4f' % (loss_value, accuracy))
+
+    # Saving the model in TF SavedModel format
+    model_dir = os.path.join(output_path, VERSION)
+    model.saved_model(model, model_dir, save_format='tf')
 
 
 def main():
