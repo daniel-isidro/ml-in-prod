@@ -2,6 +2,7 @@
 
 EPOCHS=30
 BATCH_SIZE=1024
+BUCKET=ml-in-prod1-dig
 
 gcloud ai-platform jobs submit training mnist_`date +"%s"` \
   --python-version 3.7 \
@@ -10,8 +11,8 @@ gcloud ai-platform jobs submit training mnist_`date +"%s"` \
   --package-path ./trainer \
   --module-name trainer.task \
   --region europe-west1 \
-  --job-dir gs://ml-in-prod1-dig/tmp \
+  --job-dir gs://$BUCKET/tmp \
   -- \
   --epochs $EPOCHS \
   --batch-size $BATCH_SIZE \
-  --model-output-path gs://ml-in-prod1-dig/models
+  --model-output-path gs://$BUCKET/models
