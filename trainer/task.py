@@ -39,7 +39,7 @@ def _preprocess_data(x, y):
     return x,y
 
 
-def _build_model():
+def _build_model_dense():
     m = models.Sequential()
 
     m.add(layers.Input((28,28), name='my_input_layer'))
@@ -51,8 +51,24 @@ def _build_model():
 
     return m
 
+def _build_model_cnn():
+    m = models.Sequential()
 
-def train_and_evaluate(batch_size, epochs, job_dir, output_path, is_hypertune):
+    m.add(layers.Input((28, 28, 1), name='my_input_layer'))
+    m.add(layers.Conv2D(32, (3, 3), activation=activations.relu))
+    m.add(layers.MaxPooling2D((2, 2)))
+    m.add(layers.Conv2D(16, (3, 3), activation=activations.relu))
+    m.add(layers.MaxPooling2D((2, 2)))
+    m.add(layers.Conv2D(8, (3, 3), activation=activations.relu))
+    m.add(layers.MaxPooling2D((2, 2)))
+    m.add(layers.Flatten())
+
+    m.add(layers.Dense(10, activation=activations.softmax))
+
+    return m
+
+
+def train_and_evaluate(batch_size, epochs, job_dir, output_path, is_hypertune, model_type):
     # Download the data
     x_train, y_train, x_test, y_test = _download_data()
 
@@ -61,7 +77,11 @@ def train_and_evaluate(batch_size, epochs, job_dir, output_path, is_hypertune):
     x_test, y_test = _preprocess_data(x_test, y_test)
 
     # Build the model
-    model = _build_model()
+    if model_type == 'dense':
+        model = _build_model_dense()
+    else:
+        model = _build_model_cnn()
+
     model.compile(loss=losses.categorical_crossentropy,
                   optimizer=optimizers.Adam(),
                   metrics=[metrics.categorical_accuracy])
@@ -71,14 +91,14 @@ def train_and_evaluate(batch_size, epochs, job_dir, output_path, is_hypertune):
     # e.g. tensorboard --logdir gs://BUCKET/tmp/logs  <-- no slash
     logdir = os.path.join(job_dir, "logs/scalars/" + time.strftime("%Y%m%d-%H%M%S"))
     tb_callback = callbacks.TensorBoard(log_dir=logdir)
-    model.fit(x_train, 
+    model.fit(x_train.reshape(-1, 28, 28,1), 
               y_train, 
               epochs=epochs, 
               batch_size=batch_size, 
               callbacks=[tb_callback])
 
     # Evaluate the model
-    loss_value, accuracy = model.evaluate(x_test, y_test)
+    loss_value, accuracy = model.evaluate(x_test.reshape(-1, 28, 28,1), y_test)
     LOGGER.info("  *** LOSS VALUE:  %f     ACCURACY: %.4f" % (loss_value, accuracy))
 
     # Communicate the results of the evaluation of the model
@@ -98,6 +118,7 @@ def train_and_evaluate(batch_size, epochs, job_dir, output_path, is_hypertune):
 def main():
     """Entry point for your module."""
     parser = argparse.ArgumentParser()
+    parser.add_argument('--model-type', type=str, help='Selecting dense layers model or CNN layers model')
     parser.add_argument('--hypertune', action='store_true', help='This is a hypertuning job')
     parser.add_argument('--batch-size', type=int, help='Batch size for the training')
     parser.add_argument('--epochs', type=int, help='Number of epochs for the training')
@@ -106,13 +127,14 @@ def main():
 
     args = parser.parse_args()
 
+    model_type = args.model_type
     is_hypertune = args.hypertune
     batch_size = args.batch_size
     epochs = args.epochs
     job_dir = args.job_dir
     output_path = args.model_output_path
 
-    train_and_evaluate(batch_size, epochs, job_dir, output_path, is_hypertune)
+    train_and_evaluate(batch_size, epochs, job_dir, output_path, is_hypertune, model_type)
 
 if __name__ == "__main__":
     main()
